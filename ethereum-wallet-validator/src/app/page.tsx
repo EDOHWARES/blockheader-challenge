@@ -6,64 +6,95 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { CheckCircle, XCircle, Copy, Wallet, Sparkles } from "lucide-react"
-import { Toaster } from "sonner"
-import { toast } from "@/hooks/use-toast"
+import { CheckCircle, XCircle, Copy, Wallet, Sparkles, X } from "lucide-react"
 
+// Types
 interface ValidationResult {
   address: string
   isValid: boolean
   truncated: string
 }
 
+interface ValidationStats {
+  total: number
+  valid: number
+  invalid: number
+}
+
+interface NotificationState {
+  message: string
+  type: "success" | "error"
+  show: boolean
+}
+
+// Utility functions
+const validateEthereumAddress = (address: string): boolean => {
+  const cleanAddress = address.trim()
+  if (!cleanAddress.startsWith("0x")) return false
+  if (cleanAddress.length !== 42) return false
+  const hexPart = cleanAddress.slice(2)
+  const hexRegex = /^[0-9a-fA-F]+$/
+  return hexRegex.test(hexPart)
+}
+
+const truncateAddress = (address: string): string => {
+  if (address.length <= 10) return address
+  return `${address.slice(0, 6)}...${address.slice(-4)}`
+}
+
+const parseAddresses = (input: string): string[] => {
+  return input
+    .split(/[\n,]/)
+    .map((addr) => addr.trim())
+    .filter((addr) => addr.length > 0)
+}
+
+// Notification Component
+function Notification({ message, type, onClose }: { message: string; type: "success" | "error"; onClose: () => void }) {
+  return (
+    <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
+      <div
+        className={`flex items-center gap-3 p-4 rounded-lg shadow-lg border max-w-sm ${
+          type === "success" ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-800"
+        }`}
+      >
+        {type === "success" ? (
+          <CheckCircle className="h-5 w-5 flex-shrink-0" />
+        ) : (
+          <XCircle className="h-5 w-5 flex-shrink-0" />
+        )}
+        <p className="text-sm font-medium">{message}</p>
+        <button onClick={onClose} className="ml-auto p-1 hover:bg-black/5 rounded-full transition-colors">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function EthereumValidator() {
   const [input, setInput] = useState("")
   const [results, setResults] = useState<ValidationResult[]>([])
   const [isValidating, setIsValidating] = useState(false)
+  const [notification, setNotification] = useState<NotificationState>({
+    message: "",
+    type: "success",
+    show: false,
+  })
 
-  const validateEthereumAddress = (address: string): boolean => {
-    // Remove whitespace
-    const cleanAddress = address.trim()
-
-    // Must start with 0x
-    if (!cleanAddress.startsWith("0x")) return false
-
-    // Must be exactly 42 characters
-    if (cleanAddress.length !== 42) return false
-
-    // Must contain only hexadecimal characters after 0x
-    const hexPart = cleanAddress.slice(2)
-    const hexRegex = /^[0-9a-fA-F]+$/
-
-    return hexRegex.test(hexPart)
-  }
-
-  const truncateAddress = (address: string): string => {
-    if (address.length <= 10) return address
-    return `${address.slice(0, 6)}...${address.slice(-4)}`
-  }
-
-  const parseAddresses = (input: string): string[] => {
-    // Split by both newlines and commas, then filter out empty strings
-    return input
-      .split(/[\n,]/)
-      .map((addr) => addr.trim())
-      .filter((addr) => addr.length > 0)
+  const showNotification = (message: string, type: "success" | "error") => {
+    setNotification({ message, type, show: true })
+    setTimeout(() => setNotification((prev) => ({ ...prev, show: false })), 3000)
   }
 
   const handleValidate = () => {
     if (!input.trim()) {
-      toast({
-        title: "No addresses provided",
-        description: "Please enter some Ethereum addresses to validate.",
-        variant: "destructive",
-      })
+      showNotification("Please enter some Ethereum addresses to validate.", "error")
       return
     }
 
     setIsValidating(true)
 
-    // Simulate a brief loading state for better UX
     setTimeout(() => {
       const addresses = parseAddresses(input)
       const validationResults: ValidationResult[] = addresses.map((address) => ({
@@ -85,21 +116,17 @@ export default function EthereumValidator() {
 
     if (validAddresses) {
       navigator.clipboard.writeText(validAddresses)
-      toast({
-        title: "Copied to clipboard!",
-        description: `${validAddresses.split("\n").length} valid addresses copied.`,
-      })
+      showNotification(`${validAddresses.split("\n").length} valid addresses copied!`, "success")
     } else {
-      toast({
-        title: "No valid addresses",
-        description: "There are no valid addresses to copy.",
-        variant: "destructive",
-      })
+      showNotification("No valid addresses to copy.", "error")
     }
   }
 
-  const validCount = results.filter((r) => r.isValid).length
-  const invalidCount = results.filter((r) => !r.isValid).length
+  const stats: ValidationStats = {
+    total: results.length,
+    valid: results.filter((r) => r.isValid).length,
+    invalid: results.filter((r) => !r.isValid).length,
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4">
@@ -154,26 +181,26 @@ export default function EthereumValidator() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2">Validation Results</CardTitle>
-                  <CardDescription>{results.length} addresses processed</CardDescription>
+                  <CardTitle>Validation Results</CardTitle>
+                  <CardDescription>{stats.total} addresses processed</CardDescription>
                 </div>
                 <div className="flex gap-2">
                   <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                     <CheckCircle className="h-3 w-3 mr-1" />
-                    {validCount} Valid
+                    {stats.valid} Valid
                   </Badge>
                   <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
                     <XCircle className="h-3 w-3 mr-1" />
-                    {invalidCount} Invalid
+                    {stats.invalid} Invalid
                   </Badge>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {validCount > 0 && (
+              {stats.valid > 0 && (
                 <Button onClick={copyValidAddresses} variant="outline" className="w-full">
                   <Copy className="h-4 w-4 mr-2" />
-                  Copy Valid Addresses ({validCount})
+                  Copy Valid Addresses ({stats.valid})
                 </Button>
               )}
 
@@ -249,8 +276,15 @@ export default function EthereumValidator() {
           </CardContent>
         </Card>
       </div>
-      <Toaster richColors position="top-right" />
 
+      {/* Notification */}
+      {notification.show && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification((prev) => ({ ...prev, show: false }))}
+        />
+      )}
     </div>
   )
 }
