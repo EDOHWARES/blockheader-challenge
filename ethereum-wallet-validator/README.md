@@ -21,7 +21,7 @@ This project allows users to validate a list of Ethereum wallet addresses and ge
 
 ## 🚀 Live Demo
 
-[Live Vercel Link](https://your-vercel-eth-validator.vercel.app)
+[Live Vercel Link](https://ethwalletvalidator.vercel.app/)
 
 ## 🧪 Usage
 
