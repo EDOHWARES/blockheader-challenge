@@ -17,6 +17,6 @@ This project is a lightweight and interactive web app that checks whether a give
 
 ## 🚀 Live Demo
 
-🔗 [Click here to view the live app](https://your-vercel-palindrome.vercel.app)
+🔗 [Click here to view the live app](https://palindrome-checker-eight-mu.vercel.app/)
 
 ---
